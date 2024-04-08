@@ -11,22 +11,20 @@ import (
 	"gorm.io/gorm"
 )
 
-type BaseDA struct{}
-
-func (s BaseDA) Insert(ctx context.Context, value interface{}) (interface{}, error) {
+func Insert[T any](ctx context.Context, value *T) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return s.InsertTx(ctx, db, value)
+	return InsertTx[T](ctx, db, value)
 }
 
-func (s BaseDA) InsertTx(ctx context.Context, db *DBContext, value interface{}) (interface{}, error) {
+func InsertTx[T any](ctx context.Context, db *DBContext, value *T) (int64, error) {
 	start := time.Now()
-	err := db.ResetCondition().Create(value).Error
-	if err != nil {
-		me, ok := err.(*mysql.MySQLError)
+	newDB := db.ResetCondition().Create(value)
+	if newDB.Error != nil {
+		me, ok := newDB.Error.(*mysql.MySQLError)
 		if ok && me.Number == 1062 {
 			log.Warn(ctx, "insert duplicate record",
 				log.Err(me),
@@ -37,11 +35,11 @@ func (s BaseDA) InsertTx(ctx context.Context, db *DBContext, value interface{}) 
 		}
 
 		log.Warn(ctx, "insert failed",
-			log.Err(err),
+			log.Err(newDB.Error),
 			log.String("tableName", db.GetTableName(value)),
 			log.Any("value", value),
 			log.Duration("duration", time.Since(start)))
-		return nil, err
+		return 0, newDB.Error
 	}
 
 	log.Debug(ctx, "insert successfully",
@@ -49,25 +47,25 @@ func (s BaseDA) InsertTx(ctx context.Context, db *DBContext, value interface{}) 
 		log.Any("value", value),
 		log.Duration("duration", time.Since(start)))
 
-	return value, nil
+	return newDB.RowsAffected, nil
 }
 
 // InsertInBatches Insert records in batch. visit https://gorm.io/docs/create.html for detail
-func (s BaseDA) InsertInBatches(ctx context.Context, value interface{}, batchSize int) (interface{}, error) {
+func InsertInBatches[T any](ctx context.Context, value []*T, batchSize int) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	return s.InsertInBatchesTx(ctx, db, value, batchSize)
+	return InsertInBatchesTx[T](ctx, db, value, batchSize)
 }
 
 // InsertInBatchesTx Insert records in batch with context. visit https://gorm.io/docs/create.html for detail
-func (s BaseDA) InsertInBatchesTx(ctx context.Context, db *DBContext, value interface{}, batchSize int) (interface{}, error) {
+func InsertInBatchesTx[T any](ctx context.Context, db *DBContext, value []*T, batchSize int) (int64, error) {
 	start := time.Now()
-	err := db.ResetCondition().CreateInBatches(value, batchSize).Error
-	if err != nil {
-		me, ok := err.(*mysql.MySQLError)
+	newDB := db.ResetCondition().CreateInBatches(value, batchSize)
+	if newDB.Error != nil {
+		me, ok := newDB.Error.(*mysql.MySQLError)
 		if ok && me.Number == 1062 {
 			log.Warn(ctx, "insertBatches duplicate record",
 				log.Err(me),
@@ -78,11 +76,11 @@ func (s BaseDA) InsertInBatchesTx(ctx context.Context, db *DBContext, value inte
 		}
 
 		log.Warn(ctx, "insertBatches failed",
-			log.Err(err),
+			log.Err(newDB.Error),
 			log.String("tableName", db.GetTableName(value)),
 			log.Any("value", value),
 			log.Duration("duration", time.Since(start)))
-		return nil, err
+		return 0, newDB.Error
 	}
 
 	log.Debug(ctx, "insertBatches successfully",
@@ -90,19 +88,19 @@ func (s BaseDA) InsertInBatchesTx(ctx context.Context, db *DBContext, value inte
 		log.Any("value", value),
 		log.Duration("duration", time.Since(start)))
 
-	return value, nil
+	return newDB.RowsAffected, nil
 }
 
-func (s BaseDA) Update(ctx context.Context, value interface{}) (int64, error) {
+func Update[T any](ctx context.Context, value *T) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	return s.UpdateTx(ctx, db, value)
+	return UpdateTx[T](ctx, db, value)
 }
 
-func (s BaseDA) UpdateTx(ctx context.Context, db *DBContext, value interface{}) (int64, error) {
+func UpdateTx[T any](ctx context.Context, db *DBContext, value *T) (int64, error) {
 	start := time.Now()
 	newDB := db.ResetCondition().Save(value)
 	if newDB.Error != nil {
@@ -132,16 +130,16 @@ func (s BaseDA) UpdateTx(ctx context.Context, db *DBContext, value interface{}) 
 	return newDB.RowsAffected, nil
 }
 
-func (s BaseDA) Save(ctx context.Context, value interface{}) error {
+func Save[T any](ctx context.Context, value *T) error {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return err
 	}
 
-	return s.SaveTx(ctx, db, value)
+	return SaveTx[T](ctx, db, value)
 }
 
-func (s BaseDA) SaveTx(ctx context.Context, db *DBContext, value interface{}) error {
+func SaveTx[T any](ctx context.Context, db *DBContext, value *T) error {
 	start := time.Now()
 	err := db.ResetCondition().Save(value).Error
 	if err != nil {
@@ -161,17 +159,18 @@ func (s BaseDA) SaveTx(ctx context.Context, db *DBContext, value interface{}) er
 	return nil
 }
 
-func (s BaseDA) Get(ctx context.Context, id interface{}, value interface{}) error {
+func Get[T any](ctx context.Context, id any) (*T, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.GetTx(ctx, db, id, value)
+	return GetTx[T](ctx, db, id)
 }
 
-func (s BaseDA) GetTx(ctx context.Context, db *DBContext, id interface{}, value interface{}) error {
+func GetTx[T any](ctx context.Context, db *DBContext, id any) (*T, error) {
 	start := time.Now()
+	value := new(T)
 	err := db.ResetCondition().Where("id=?", id).First(value).Error
 	if err == nil {
 		log.Debug(ctx, "get by id successfully",
@@ -179,7 +178,7 @@ func (s BaseDA) GetTx(ctx context.Context, db *DBContext, id interface{}, value 
 			log.String("tableName", db.GetTableName(value)),
 			log.Any("value", value),
 			log.Duration("duration", time.Since(start)))
-		return nil
+		return value, nil
 	}
 
 	log.Warn(ctx, "get by id failed",
@@ -190,22 +189,22 @@ func (s BaseDA) GetTx(ctx context.Context, db *DBContext, id interface{}, value 
 		log.Duration("duration", time.Since(start)))
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return ErrRecordNotFound
+		return nil, ErrRecordNotFound
 	}
 
-	return err
+	return nil, err
 }
 
-func (s BaseDA) Query(ctx context.Context, condition Conditions, values interface{}) error {
+func Query[T any](ctx context.Context, condition QueryCondition) ([]*T, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.QueryTx(ctx, db, condition, values)
+	return QueryTx[T](ctx, db, condition)
 }
 
-func (s BaseDA) QueryTx(ctx context.Context, db *DBContext, condition Conditions, values interface{}) error {
+func QueryTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) ([]*T, error) {
 	db.ResetCondition()
 
 	wheres, parameters := condition.GetConditions()
@@ -213,51 +212,51 @@ func (s BaseDA) QueryTx(ctx context.Context, db *DBContext, condition Conditions
 		db.DB = db.Where(strings.Join(wheres, " and "), parameters...)
 	}
 
-	orderBy := condition.GetOrderBy()
-	if orderBy != "" {
-		db.DB = db.Order(orderBy)
+	orderBy, ok := condition.(OrderByCondition)
+	if ok {
+		db.DB = db.Order(orderBy.GetOrderBy())
 	}
 
-	pager := condition.GetPager()
-	if pager != nil && pager.Enable() {
-		// pagination
-		offset, limit := pager.Offset()
-		db.DB = db.Offset(offset).Limit(limit)
+	pc, ok := condition.(PagerCondition)
+	if ok {
+		pager := pc.GetPager()
+		if pager != nil && pager.Enable() {
+			// pagination
+			offset, limit := pager.Offset()
+			db.DB = db.Offset(offset).Limit(limit)
+		}
 	}
 
 	start := time.Now()
+	values := make([]*T, 0)
 	err := db.Find(values).Error
 	if err != nil {
 		log.Warn(ctx, "query values failed",
 			log.Err(err),
 			log.String("tableName", db.GetTableName(values)),
 			log.Any("condition", condition),
-			log.Any("pager", pager),
-			log.String("orderBy", orderBy),
 			log.Duration("duration", time.Since(start)))
-		return err
+		return nil, err
 	}
 
 	log.Debug(ctx, "query values successfully",
 		log.String("tableName", db.GetTableName(values)),
 		log.Any("condition", condition),
-		log.Any("pager", pager),
-		log.String("orderBy", orderBy),
 		log.Duration("duration", time.Since(start)))
 
-	return nil
+	return values, nil
 }
 
-func (s BaseDA) Count(ctx context.Context, condition Conditions, values interface{}) (int, error) {
+func Count[T any](ctx context.Context, condition QueryCondition) (int, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	return s.CountTx(ctx, db, condition, values)
+	return CountTx[T](ctx, db, condition)
 }
 
-func (s BaseDA) CountTx(ctx context.Context, db *DBContext, condition Conditions, value interface{}) (int, error) {
+func CountTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) (int, error) {
 	db.ResetCondition()
 
 	wheres, parameters := condition.GetConditions()
@@ -267,6 +266,7 @@ func (s BaseDA) CountTx(ctx context.Context, db *DBContext, condition Conditions
 
 	start := time.Now()
 	var total int64
+	var value T
 	tableName := db.GetTableName(value)
 	err := db.Table(tableName).Count(&total).Error
 	if err != nil {
@@ -286,54 +286,25 @@ func (s BaseDA) CountTx(ctx context.Context, db *DBContext, condition Conditions
 	return int(total), nil
 }
 
-func (s BaseDA) Page(ctx context.Context, condition Conditions, values interface{}) (int, error) {
+func Page[T any](ctx context.Context, condition QueryCondition) (int, []*T, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	return s.PageTx(ctx, db, condition, values)
+	return PageTx[T](ctx, db, condition)
 }
 
-func (s BaseDA) PageTx(ctx context.Context, db *DBContext, condition Conditions, values interface{}) (int, error) {
-	total, err := s.CountTx(ctx, db, condition, values)
+func PageTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) (int, []*T, error) {
+	total, err := CountTx[T](ctx, db, condition)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	err = s.QueryTx(ctx, db, condition, values)
+	values, err := QueryTx[T](ctx, db, condition)
 	if err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	return total, nil
-}
-
-func (s BaseDA) QueryRawSQL(ctx context.Context, values interface{}, sql string, parameters ...interface{}) error {
-	db, err := GetDB(ctx)
-	if err != nil {
-		return err
-	}
-
-	return s.QueryRawSQLTx(ctx, db, values, sql, parameters...)
-}
-
-func (s BaseDA) QueryRawSQLTx(ctx context.Context, db *DBContext, values interface{}, sql string, parameters ...interface{}) error {
-	start := time.Now()
-	err := db.ResetCondition().Raw(sql, parameters...).Find(values).Error
-	if err != nil {
-		log.Warn(ctx, "query raw sql failed",
-			log.Err(err),
-			log.String("sql", sql),
-			log.Any("parameters", parameters),
-			log.Duration("duration", time.Since(start)))
-		return err
-	}
-
-	log.Debug(ctx, "query raw sql successfully",
-		log.String("sql", sql),
-		log.Any("parameters", parameters),
-		log.Duration("duration", time.Since(start)))
-
-	return nil
+	return total, values, nil
 }
