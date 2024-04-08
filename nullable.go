@@ -1,53 +1,53 @@
 package dbo
 
-import "strings"
+import "time"
 
-// NullStrings nullable strings
 type NullStrings struct {
 	Strings []string
 	Valid   bool
 }
 
-// ToInterfaceSlice values to interface() slice
-func (s NullStrings) ToInterfaceSlice() []interface{} {
-	slice := make([]interface{}, len(s.Strings))
-	for index, value := range s.Strings {
-		slice[index] = value
-	}
-
-	return slice
+type NullString struct {
+	String string
+	Valid  bool
 }
 
-// SQLPlaceHolder generate sql place holder
-func (s NullStrings) SQLPlaceHolder() string {
-	if len(s.Strings) == 0 && s.Valid {
-		return "null"
-	}
-
-	return strings.TrimSuffix(strings.Repeat("?,", len(s.Strings)), ",")
+type NullInt struct {
+	Int   int
+	Valid bool
 }
 
-// NullInts nullable ints
 type NullInts struct {
 	Ints  []int
 	Valid bool
 }
 
-// ToInterfaceSlice values to interface() slice
-func (s NullInts) ToInterfaceSlice() []interface{} {
-	slice := make([]interface{}, len(s.Ints))
-	for index, value := range s.Ints {
-		slice[index] = value
-	}
-
-	return slice
+type NullInt64 struct {
+	Int64 int64
+	Valid bool
 }
 
-// SQLPlaceHolder generate sql place holder
-func (s NullInts) SQLPlaceHolder() string {
-	if len(s.Ints) == 0 && s.Valid {
-		return "null"
-	}
+type NullInt64s struct {
+	Int64s []int64
+	Valid  bool
+}
 
-	return strings.TrimSuffix(strings.Repeat("?,", len(s.Ints)), ",")
+type NullBool struct {
+	Bool  bool
+	Valid bool
+}
+
+type NullBools struct {
+	Bools []bool
+	Valid bool
+}
+
+type NullTime struct {
+	Time  time.Time
+	Valid bool
+}
+
+type NullTimes struct {
+	Times []time.Time
+	Valid bool
 }
