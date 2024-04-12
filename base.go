@@ -229,7 +229,7 @@ func QueryTx[T any](ctx context.Context, db *DBContext, condition QueryCondition
 
 	start := time.Now()
 	values := make([]*T, 0)
-	err := db.Find(values).Error
+	err := db.Find(&values).Error
 	if err != nil {
 		log.Warn(ctx, "query values failed",
 			log.Err(err),
