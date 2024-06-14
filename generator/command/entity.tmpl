@@ -1,0 +1,46 @@
+{{range $table := .}}
+// {{$table.Name}}
+type {{$table.SingularName}} struct {
+{{range $column := $table.Columns}}
+    {{$column.NomarlizedName}}  {{$column.GoType}}  `gorm:"{{$column.Name}}" json:"{{$column.Name}}"`   // {{$column.Comment}}{{end}}
+}
+
+// TableName table name
+func ({{$table.SingularName}}) TableName() string {
+	return "{{$table.Name}}"
+}
+
+type {{$table.SingularName}}QueryCondition struct {
+{{range $column := $table.Columns}}
+    {{$column.NomarlizedName}}  *{{$column.GoType}}   // {{$column.Comment}}{{if $column.IsID }}
+    {{$column.NomarlizedName}}s  *[]{{$column.GoType}}   // {{$column.Comment}}s{{end}}{{end}}
+    OrderBy string
+    *dbo.Pager
+}
+
+func (c {{$table.SingularName}}QueryCondition) GetConditions() ([]string, []any){
+    conditions := make([]string, 0, {{len $table.Columns}})
+    parameters := make([]any, 0, {{len $table.Columns}})
+{{range $column := $table.Columns}}
+    if c.{{$column.NomarlizedName}} != nil {
+        conditions = append(conditions, "{{$column.Name}}=?")
+        parameters = append(parameters, *c.{{$column.NomarlizedName}}) 
+    }{{if $column.IsID }}
+
+    if c.{{$column.NomarlizedName}}s != nil {
+        conditions = append(conditions, "{{$column.Name}} in (?)")
+        parameters = append(parameters, *c.{{$column.NomarlizedName}}s) 
+    }
+{{end}}
+{{end}}
+    return conditions, parameters
+}
+
+func (c {{$table.SingularName}}QueryCondition) GetOrderBy() string {
+    return c.OrderBy
+}
+
+func (c {{$table.SingularName}}QueryCondition) GetPager() *dbo.Pager {
+    return c.Pager
+}
+{{end}}

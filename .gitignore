@@ -16,3 +16,5 @@
 
 *.exe
 
+generator/generator
+generator/*.sql

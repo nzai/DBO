@@ -51,3 +51,7 @@ type NullTimes struct {
 	Times []time.Time
 	Valid bool
 }
+
+func Var[T any](v T) *T {
+	return &v
+}

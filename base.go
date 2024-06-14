@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func Insert[T any](ctx context.Context, value *T) (int64, error) {
+func Insert[T any](ctx context.Context, value T) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, err
@@ -20,7 +20,7 @@ func Insert[T any](ctx context.Context, value *T) (int64, error) {
 	return InsertTx[T](ctx, db, value)
 }
 
-func InsertTx[T any](ctx context.Context, db *DBContext, value *T) (int64, error) {
+func InsertTx[T any](ctx context.Context, db *DBContext, value T) (int64, error) {
 	start := time.Now()
 	newDB := db.ResetCondition().Create(value)
 	if newDB.Error != nil {
@@ -51,7 +51,7 @@ func InsertTx[T any](ctx context.Context, db *DBContext, value *T) (int64, error
 }
 
 // InsertInBatches Insert records in batch. visit https://gorm.io/docs/create.html for detail
-func InsertInBatches[T any](ctx context.Context, value []*T, batchSize int) (int64, error) {
+func InsertInBatches[T any](ctx context.Context, value []T, batchSize int) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, err
@@ -61,7 +61,7 @@ func InsertInBatches[T any](ctx context.Context, value []*T, batchSize int) (int
 }
 
 // InsertInBatchesTx Insert records in batch with context. visit https://gorm.io/docs/create.html for detail
-func InsertInBatchesTx[T any](ctx context.Context, db *DBContext, value []*T, batchSize int) (int64, error) {
+func InsertInBatchesTx[T any](ctx context.Context, db *DBContext, value []T, batchSize int) (int64, error) {
 	start := time.Now()
 	newDB := db.ResetCondition().CreateInBatches(value, batchSize)
 	if newDB.Error != nil {
@@ -91,7 +91,7 @@ func InsertInBatchesTx[T any](ctx context.Context, db *DBContext, value []*T, ba
 	return newDB.RowsAffected, nil
 }
 
-func Update[T any](ctx context.Context, value *T) (int64, error) {
+func Update[T any](ctx context.Context, value T) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, err
@@ -100,7 +100,7 @@ func Update[T any](ctx context.Context, value *T) (int64, error) {
 	return UpdateTx[T](ctx, db, value)
 }
 
-func UpdateTx[T any](ctx context.Context, db *DBContext, value *T) (int64, error) {
+func UpdateTx[T any](ctx context.Context, db *DBContext, value T) (int64, error) {
 	start := time.Now()
 	newDB := db.ResetCondition().Save(value)
 	if newDB.Error != nil {
@@ -130,7 +130,7 @@ func UpdateTx[T any](ctx context.Context, db *DBContext, value *T) (int64, error
 	return newDB.RowsAffected, nil
 }
 
-func Save[T any](ctx context.Context, value *T) error {
+func Save[T any](ctx context.Context, value T) error {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func Save[T any](ctx context.Context, value *T) error {
 	return SaveTx[T](ctx, db, value)
 }
 
-func SaveTx[T any](ctx context.Context, db *DBContext, value *T) error {
+func SaveTx[T any](ctx context.Context, db *DBContext, value T) error {
 	start := time.Now()
 	err := db.ResetCondition().Save(value).Error
 	if err != nil {
@@ -159,18 +159,18 @@ func SaveTx[T any](ctx context.Context, db *DBContext, value *T) error {
 	return nil
 }
 
-func Get[T any](ctx context.Context, id any) (*T, error) {
+func Get[T any](ctx context.Context, id any) (value T, err error) {
 	db, err := GetDB(ctx)
 	if err != nil {
-		return nil, err
+		return value, err
 	}
 
 	return GetTx[T](ctx, db, id)
 }
 
-func GetTx[T any](ctx context.Context, db *DBContext, id any) (*T, error) {
+func GetTx[T any](ctx context.Context, db *DBContext, id any) (T, error) {
 	start := time.Now()
-	value := new(T)
+	var value T
 	err := db.ResetCondition().Where("id=?", id).First(value).Error
 	if err == nil {
 		log.Debug(ctx, "get by id successfully",
@@ -189,13 +189,13 @@ func GetTx[T any](ctx context.Context, db *DBContext, id any) (*T, error) {
 		log.Duration("duration", time.Since(start)))
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrRecordNotFound
+		return value, ErrRecordNotFound
 	}
 
-	return nil, err
+	return value, err
 }
 
-func Query[T any](ctx context.Context, condition QueryCondition) ([]*T, error) {
+func Query[T any](ctx context.Context, condition QueryCondition) ([]T, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func Query[T any](ctx context.Context, condition QueryCondition) ([]*T, error) {
 	return QueryTx[T](ctx, db, condition)
 }
 
-func QueryTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) ([]*T, error) {
+func QueryTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) ([]T, error) {
 	db.ResetCondition()
 
 	wheres, parameters := condition.GetConditions()
@@ -228,7 +228,7 @@ func QueryTx[T any](ctx context.Context, db *DBContext, condition QueryCondition
 	}
 
 	start := time.Now()
-	values := make([]*T, 0)
+	values := make([]T, 0)
 	err := db.Find(&values).Error
 	if err != nil {
 		log.Warn(ctx, "query values failed",
@@ -247,7 +247,21 @@ func QueryTx[T any](ctx context.Context, db *DBContext, condition QueryCondition
 	return values, nil
 }
 
-func Count[T any](ctx context.Context, condition QueryCondition) (int, error) {
+func QueryMap[T Entity](ctx context.Context, condition QueryCondition) (map[string]T, error) {
+	values, err := Query[T](ctx, condition)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]T, len(values))
+	for _, v := range values {
+		m[v.GetID()] = v
+	}
+
+	return m, nil
+}
+
+func Count[T any](ctx context.Context, condition QueryCondition) (int64, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, err
@@ -256,7 +270,7 @@ func Count[T any](ctx context.Context, condition QueryCondition) (int, error) {
 	return CountTx[T](ctx, db, condition)
 }
 
-func CountTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) (int, error) {
+func CountTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) (int64, error) {
 	db.ResetCondition()
 
 	wheres, parameters := condition.GetConditions()
@@ -283,10 +297,10 @@ func CountTx[T any](ctx context.Context, db *DBContext, condition QueryCondition
 		log.Any("condition", condition),
 		log.Duration("duration", time.Since(start)))
 
-	return int(total), nil
+	return total, nil
 }
 
-func Page[T any](ctx context.Context, condition QueryCondition) (int, []*T, error) {
+func Page[T any](ctx context.Context, condition QueryCondition) (int64, []T, error) {
 	db, err := GetDB(ctx)
 	if err != nil {
 		return 0, nil, err
@@ -295,7 +309,7 @@ func Page[T any](ctx context.Context, condition QueryCondition) (int, []*T, erro
 	return PageTx[T](ctx, db, condition)
 }
 
-func PageTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) (int, []*T, error) {
+func PageTx[T any](ctx context.Context, db *DBContext, condition QueryCondition) (int64, []T, error) {
 	total, err := CountTx[T](ctx, db, condition)
 	if err != nil {
 		return 0, nil, err
