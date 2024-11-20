@@ -170,7 +170,8 @@ func Get[T any](ctx context.Context, id any) (value T, err error) {
 
 func GetTx[T any](ctx context.Context, db *DBContext, id any) (T, error) {
 	start := time.Now()
-	var value T
+	value := new(T)
+
 	err := db.ResetCondition().Where("id=?", id).First(value).Error
 	if err == nil {
 		log.Debug(ctx, "get by id successfully",
@@ -178,7 +179,7 @@ func GetTx[T any](ctx context.Context, db *DBContext, id any) (T, error) {
 			log.String("tableName", db.GetTableName(value)),
 			log.Any("value", value),
 			log.Duration("duration", time.Since(start)))
-		return value, nil
+		return *value, nil
 	}
 
 	log.Warn(ctx, "get by id failed",
@@ -189,10 +190,10 @@ func GetTx[T any](ctx context.Context, db *DBContext, id any) (T, error) {
 		log.Duration("duration", time.Since(start)))
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return value, ErrRecordNotFound
+		return *value, ErrRecordNotFound
 	}
 
-	return value, err
+	return *value, err
 }
 
 func Query[T any](ctx context.Context, condition QueryCondition) ([]T, error) {
