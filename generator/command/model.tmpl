@@ -4,24 +4,23 @@ import (
 	"context"
 
 	"github.com/nzai/dbo/v2"
-    "{{.Module}}/entity"
 )
 
 // {{.Name}} model
 type {{.Table.SingularName}}Model struct {}
 
 func (s {{.SingularName}}Model) Get(ctx context.Context, id string) (*entity.{{.SingularName}}, error) {
-    return dbo.Get[entity.{{.SingularName}}](ctx, id)
+    return dbo.Get[*entity.{{.SingularName}}](ctx, id)
 }
 
 func (s {{.SingularName}}Model) Count(ctx context.Context, condition *entity.{{.SingularName}}QueryCondition) (int64, error) {
-    return dbo.Count[entity.{{.SingularName}}](ctx, condition)
+    return dbo.Count[*entity.{{.SingularName}}](ctx, condition)
 }
 
 func (s {{.SingularName}}Model) Query(ctx context.Context, condition *entity.{{.SingularName}}QueryCondition) ([]*entity.{{.SingularName}}, error) {
-    return dbo.Query[entity.{{.SingularName}}](ctx, condition)
+    return dbo.Query[*entity.{{.SingularName}}](ctx, condition)
 }
 
 func (s {{.SingularName}}Model) PageQuery(ctx context.Context, condition *entity.{{.SingularName}}QueryCondition) (int64, []*entity.{{.SingularName}}, error) {
-    return dbo.Page[entity.{{.SingularName}}](ctx, condition)
+    return dbo.Page[*entity.{{.SingularName}}](ctx, condition)
 }
