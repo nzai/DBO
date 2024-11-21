@@ -2,6 +2,7 @@ package schema
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/gobeam/stringy"
 )
@@ -80,8 +81,12 @@ func GetParser() Parser {
 }
 
 var idRegex = regexp.MustCompile(`(id|Id|ID)$`)
+var abbrRegex = regexp.MustCompile(`^[a-zA-Z]{1,2}\d*$`)
 
 func Normalize(v string) string {
 	v = stringy.New(v).CamelCase()
-	return idRegex.ReplaceAllString(v, "ID")
+	v = idRegex.ReplaceAllString(v, "ID")
+	return abbrRegex.ReplaceAllStringFunc(v, func(s string) string {
+		return strings.ToUpper(s)
+	})
 }
